@@ -1,0 +1,165 @@
+<div class="estimator-container">
+  <mat-accordion multi>
+    <!-- Section 1: Ticker Input -->
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Step 1: Enter Your Stock Ticker</mat-panel-title>
+      </mat-expansion-panel-header>
+      <form>
+        <mat-form-field appearance="outline">
+          <mat-label>Stock Symbol</mat-label>
+          <input
+            matInput
+            type="text"
+            [(ngModel)]="formData.ticker"
+            name="ticker"
+            required
+            placeholder="e.g., AAPL"
+            matTooltip="Enter the stock symbol of the shares you own. For example, 'AAPL' for Apple."
+            (blur)="onTickerBlur()"
+          />
+        </mat-form-field>
+        <div *ngIf="loading" class="loading-spinner">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading data for your stock ticker...</span>
+        </div>
+      </form>
+    </mat-expansion-panel>
+
+    <!-- Section 2: Expiration Date Selection -->
+    <mat-expansion-panel [disabled]="!dropdownOptions.expiration_dates.length">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Step 2: Select an Expiration Date</mat-panel-title>
+      </mat-expansion-panel-header>
+      <form>
+        <mat-form-field appearance="outline">
+          <mat-label>Expiration Date</mat-label>
+          <mat-select
+            [(ngModel)]="formData.expiration_date"
+            name="expiration_date"
+            required
+            matTooltip="Choose the date when the option contract will expire. This determines how long the contract lasts."
+            (selectionChange)="onExpirationDateChange()"
+          >
+            <mat-option *ngFor="let date of dropdownOptions.expiration_dates" [value]="date">
+              {{ date }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </form>
+    </mat-expansion-panel>
+
+    <!-- Section 3: Strike Price Selection -->
+    <mat-expansion-panel [disabled]="!dropdownOptions.strike_prices.length">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Step 3: Select a Strike Price</mat-panel-title>
+      </mat-expansion-panel-header>
+      <form>
+        <mat-form-field appearance="outline">
+          <mat-label>Strike Price</mat-label>
+          <mat-select
+            [(ngModel)]="formData.strike_price"
+            name="strike_price"
+            required
+            matTooltip="Choose the price at which you are willing to sell your shares. Higher prices mean lower premiums but more potential for stock appreciation."
+            (selectionChange)="onStrikePriceChange()"
+          >
+            <mat-option *ngFor="let option of dropdownOptions.strike_prices" [value]="option.price">
+              {{ option.price }} ({{ option.probability | percent:'1.1-2' }})
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </form>
+    </mat-expansion-panel>
+
+    <!-- Section 4: Premium Display -->
+    <mat-expansion-panel [disabled]="premium === null">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Step 4: View Your Premium and Charts</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="premium !== null">
+        <div>
+          <mat-button-toggle-group [(ngModel)]="viewMode" (change)="updateIncomeComparisonChart()">
+            <mat-button-toggle value="monthly">Monthly</mat-button-toggle>
+            <mat-button-toggle value="yearly">Yearly</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+        <p>Your premium is the income you earn upfront for selling the option. This is paid to you whether or not the stock is sold.</p>
+        <h2>${{ getPremiumIncome() | number:'1.2-2' }}</h2>
+        <small>(per share) ${{ premium | number:'1.2-2' }}</small>
+
+        <div class="chart-container">
+          <h3>Income Comparison: Dividends vs. Dividends + Premiums</h3>
+          <p>
+            This chart compares your regular dividend income to the combined income from dividends and the premium earned by selling the option.
+          </p>
+          <canvas baseChart
+                  [data]="roiChartData"
+                  [type]="roiChartType"
+                  [options]="{ responsive: true, scales: { y: { beginAtZero: true } } }">
+          </canvas>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Step 5: Scenario Analysis -->
+    <mat-expansion-panel [disabled]="!formData.strike_price || !premium">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Step 5: Scenario Analysis</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <div class="scenario-analysis">
+        <h3>What Happens Under Different Scenarios?</h3>
+        <p>
+          Explore the potential outcomes based on whether the stock price stays below, hits, or exceeds your selected strike price.
+          This includes your income from premiums, capital gains, and potential taxes.
+        </p>
+        <div *ngIf="formData.strike_price && stockPrice && premium">
+          <table>
+            <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Outcome</th>
+              <th>Capital Gains</th>
+              <th>Short-Term Tax</th>
+              <th>Long-Term Tax</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td>Stock Price Stays Below Strike Price</td>
+              <td>
+                You keep your shares and collect ${{ getPremiumIncome() | number:'1.2-2' }} in premium income. <br />
+                Total Income: ${{ calculateIncomeBelowStrike() | number:'1.2-2' }}
+              </td>
+              <td>$0</td>
+              <td>$0</td>
+              <td>$0</td>
+            </tr>
+            <tr>
+              <td>Stock Price Hits Strike Price</td>
+              <td>
+                You sell your shares at the strike price. <br />
+                Total Income: ${{ calculateIncomeAtStrike() | number:'1.2-2' }}
+              </td>
+              <td>${{ calculateCapitalGainsAtStrike() | number:'1.2-2' }}</td>
+              <td>${{ calculateShortTermTaxAtStrike() | number:'1.2-2' }}</td>
+              <td>${{ calculateLongTermTaxAtStrike() | number:'1.2-2' }}</td>
+            </tr>
+            <tr>
+              <td>Stock Price Exceeds Strike Price</td>
+              <td>
+                You sell your shares at the strike price but miss out on gains above ${{ formData.strike_price }}. <br />
+                Total Income: ${{ calculateIncomeAboveStrike() | number:'1.2-2' }}
+              </td>
+              <td>${{ calculateCapitalGainsAtStrike() | number:'1.2-2' }}</td>
+              <td>${{ calculateShortTermTaxAtStrike() | number:'1.2-2' }}</td>
+              <td>${{ calculateLongTermTaxAtStrike() | number:'1.2-2' }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>
