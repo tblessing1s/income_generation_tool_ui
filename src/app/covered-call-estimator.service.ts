@@ -9,7 +9,8 @@ import {CoveredCallFormData} from './interfaces/covered-call-form-data.interface
   providedIn: 'root'
 })
 export class CoveredCallEstimatorService {
-  private apiUrl = 'http://127.0.0.1:5000/api/';
+  // private apiUrl = 'http://127.0.0.1:5000/api/';
+  private apiUrl = 'https://income-generation-tool-backend.onrender.com/api/';
 
   constructor(private http: HttpClient) {}
 
