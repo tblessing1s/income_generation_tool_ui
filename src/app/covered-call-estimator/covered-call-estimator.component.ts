@@ -141,6 +141,13 @@ export class CoveredCallEstimatorComponent {
     }
   }
 
+  calculateDaysToExpiry(date: string): number {
+    const currentDate = new Date();
+    const expirationDate = new Date(date);
+    const difference = expirationDate.getTime() - currentDate.getTime();
+    return Math.ceil(difference / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+  }
+
   // ROI Calculations
   getDividendIncome(): number {
     let dividend_per_year = (this.stockPrice * this.dividendYield) * 100;
@@ -152,6 +159,12 @@ export class CoveredCallEstimatorComponent {
     const premiumValue = this.premium ?? 0;
     const premiumIncome = premiumValue * 100;
     return this.viewMode === 'monthly' ? premiumIncome : premiumIncome * 12;
+  }
+
+  convertToUppercase(): void {
+    if (this.formData.ticker) {
+      this.formData.ticker = this.formData.ticker.toUpperCase();
+    }
   }
 
   calculateIncomeBelowStrike(): number {

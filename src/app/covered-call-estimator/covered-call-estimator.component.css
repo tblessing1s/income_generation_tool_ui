@@ -151,3 +151,28 @@ button {
 .scenario-analysis td:nth-child(2) {
   color: #007bff;
 }
+
+mat-icon {
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+/* Align the option container and icon */
+.option-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Update colors for better visibility */
+mat-icon[color="warn"] {
+  color: #e6a700; /* Darker yellow for better visibility */
+}
+
+mat-icon[color="primary"] {
+  color: #4caf50; /* Green */
+}
+
+mat-icon[color="accent"] {
+  color: #d32f2f; /* Red */
+}
