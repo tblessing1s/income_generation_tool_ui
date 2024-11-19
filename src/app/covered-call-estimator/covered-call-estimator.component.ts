@@ -1,6 +1,5 @@
 import {Component} from '@angular/core';
 import {CoveredCallEstimatorService} from '../covered-call-estimator.service';
-import {ChartConfiguration, ChartType} from 'chart.js';
 
 const SHORT_TERM_TAX_RATE = 0.37; // 37% for short-term gains (example value)
 const LONG_TERM_TAX_RATE = 0.20;  // 20% for long-term gains (example value)
@@ -13,225 +12,189 @@ const LONG_TERM_TAX_RATE = 0.20;  // 20% for long-term gains (example value)
 export class CoveredCallEstimatorComponent {
   formData = {
     ticker: '',
+    shares: 100, // Default value
     expiration_date: '',
-    strike_price: null
+    strike_price: 0,
   };
-
-
-
-  optionsData: any[] = [];
-  dropdownOptions = {
-    expiration_dates: [] as string[],
-    strike_prices: [] as { price: number; probability: number }[]
+  dropdownOptions: {
+    expiration_dates: string[],
+    strike_prices: {price: number, probability: number, premium: number}[]
+  } = {
+    expiration_dates: [],
+    strike_prices: [],
   };
-
+  optionsData: any[] = []; // Stores full options data fetched from the service
   premium: number | null = null;
-  dividendYield: number = 0; // 2% dividend yield
-  stockPrice: number = 0;
+  roiChartData: any = null;
   loading: boolean = false;
   error: string | null = null;
-  viewMode: 'monthly' | 'yearly' = 'monthly';
-
-  roiChartData: ChartConfiguration<'bar'>['data'] = {
-    labels: ['Dividends Only', 'Dividends + Premiums'],
-    datasets: [
-      { data: [], label: 'Dividends Only ROI', backgroundColor: 'rgba(0,123,255,0.5)' },
-      { data: [], label: 'Dividends + Premiums ROI', backgroundColor: 'rgba(40,167,69,0.5)' }
-    ]
-  };
-
-  chartOptions: ChartConfiguration<'bar'>['options'] = {
-    responsive: true,
-    scales: {
-      x: {
-        grid: {
-          display: false
-        }
-      },
-      y: {
-        beginAtZero: true,
-      },
-    },
-  };
-  roiChartType: ChartType = 'bar';
-
-  // Chart data and configuration
-  incomeChartData: ChartConfiguration<'bar'>['data'] = {
-    labels: [],
-    datasets: [{ data: [], label: 'Potential Income' }]
-  };
-
-  probabilityChartData: ChartConfiguration<'line'>['data'] = {
-    labels: [],
-    datasets: [{ data: [], label: 'Probability (%)', borderColor: '#3e95cd', fill: false }]
-  };
-
-  incomeChartType: ChartType = 'bar';
-  probabilityChartType: ChartType = 'line';
+  dividend: number = 0;
+  totalIncome: number = 0;
+  projectionType: 'yearly' | 'monthly' = 'yearly'; // Default to yearly
 
   constructor(private optionsDataService: CoveredCallEstimatorService) {}
 
-  // Fetch expiration dates after ticker input
-  onTickerBlur() {
-    if (this.formData.ticker.trim()) {
-      this.loading = true;
-      this.fetchExpirationDates();
-    } else {
-      this.error = 'Please enter a valid stock ticker.';
-    }
-  }
 
-  fetchExpirationDates() {
+  /**
+   * Fetch options data and populate expiration dates and strike prices.
+   */
+  fetchOptionsRecommendations(): void {
     this.loading = true;
     this.error = null;
 
     this.optionsDataService.getOptionsData(this.formData.ticker, 'covered_call').subscribe({
       next: (data: any) => {
         this.optionsData = data.recommendations;
-
+        console.log('optionsData', this.optionsData);
+        // Extract unique expiration dates
         this.dropdownOptions.expiration_dates = Array.from(
-          new Set(this.optionsData.map((opt: any) => opt.expiration_date))
+          new Set(this.optionsData.map((opt) => opt.expiration_date))
         );
-
-        this.formData.expiration_date = '';
-        this.dropdownOptions.strike_prices = [];
-        this.formData.strike_price = null;
-        this.premium = null;
-
+        // this.stockPrice = this.optionsData[0].stock_price;
+        // Set the recommended expiration date and strike price
+        if (this.dropdownOptions.expiration_dates.length > 0) {
+          this.setRecommendedExpirationDateAndStrikePrice();
+        } else {
+          this.error = 'No expiration dates available.';
+        }
         this.loading = false;
-      }
-      ,
+      },
       error: (err: any) => {
-        console.error('Error fetching expiration dates:', err);
-        this.error = 'Failed to load expiration dates. Please try again.';
+        console.error('Error fetching options data:', err);
+        this.error = 'Failed to fetch options data. Please try again.';
         this.loading = false;
-      }
+      },
     });
   }
 
-  onExpirationDateChange() {
-    if (this.formData.expiration_date) {
-      const filteredOptions = this.optionsData.filter(
-        (opt: any) => opt.expiration_date === this.formData.expiration_date
-      );
+  /**
+   * Set the recommended expiration date and strike price.
+   */
+  setRecommendedExpirationDateAndStrikePrice(): void {
+    // Find the expiration date closest to 30 days out
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + 30);
 
-      this.dropdownOptions.strike_prices = filteredOptions.map((opt: any) => ({
-        price: opt.strike_price,
-        probability: opt.probability
-      }));
+    this.formData.expiration_date = this.dropdownOptions.expiration_dates.reduce((closest, date) => {
+      const currentDiff = Math.abs(new Date(date).getTime() - targetDate.getTime());
+      const closestDiff = Math.abs(new Date(closest).getTime() - targetDate.getTime());
+      return currentDiff < closestDiff ? date : closest;
+    });
 
-      this.formData.strike_price = null;
+    // Update strike prices for the recommended expiration date
+    this.updateStrikePrices();
+  }
+
+  /**
+   * Update strike prices for the selected expiration date and recommend a strike price.
+   */
+  updateStrikePrices(): void {
+    const selectedExpirationDate = this.formData.expiration_date;
+
+    // Filter options data by the selected expiration date
+    const relevantOptions = this.optionsData.filter(
+      (opt) => opt.expiration_date === selectedExpirationDate
+    );
+    console.log('relevantOptions', relevantOptions);
+    // Populate strike prices dropdown
+    this.dropdownOptions.strike_prices = relevantOptions.map((opt) => ({
+      price: opt.strike_price,
+      probability: opt.probability,
+      premium: opt.mark_price,
+    }));
+
+
+    // Recommend a strike price based on probability closest to 20%
+    const targetProbability = 0.20;
+    const recommendedOption = relevantOptions.reduce((best, current) => {
+      const currentDiff = Math.abs(current.probability - targetProbability);
+      const bestDiff = Math.abs(best.probability - targetProbability);
+      return currentDiff < bestDiff ? current : best;
+    });
+
+    if (recommendedOption) {
+      this.formData.strike_price = recommendedOption.strike_price;
+    } else {
+      this.formData.strike_price = 0;
+      this.error = 'No valid strike prices available.';
+    }
+    console.log('Calculate premium', this.dropdownOptions.strike_prices);
+    // Recalculate premium
+    this.calculatePremium();
+  }
+
+  /**
+   * Calculate the premium based on the selected strike price and number of shares.
+   */
+  calculatePremium(): void {
+    const selectedStrike = this.dropdownOptions.strike_prices.find(
+      (option) => option.price === this.formData.strike_price
+    );
+    console.log('selectedStrike', selectedStrike);
+    if (selectedStrike) {
+      const eligibleShares = this.eligiblePremiumShares(); // Only multiples of 100 shares
+
+      this.premium = this.calculatePremiumByYear(selectedStrike.premium, eligibleShares);
+      this.dividend = this.calculateDividendsByYear(this.optionsData[0].dividend_yield, this.optionsData[0].stock_price);
+      console.log('premium', this.premium);
+      // Update chart data
+      this.roiChartData = {
+        labels: ['Dividends', 'Premiums'],
+        datasets: [
+          {
+            label: 'Income Comparison',
+            data: [this.dividend, this.premium],
+          },
+        ],
+      };
+      this.totalIncome = this.dividend + this.premium;
+    } else {
       this.premium = null;
+      this.roiChartData = null;
     }
   }
 
-  onStrikePriceChange() {
-    if (this.formData.strike_price) {
-      const selectedOption = this.optionsData.find(
-        (opt: any) =>
-          opt.expiration_date === this.formData.expiration_date &&
-          opt.strike_price === this.formData.strike_price
-      );
-      if (selectedOption) {
-        this.premium = selectedOption.mark_price;
-        this.dividendYield = selectedOption.dividend_yield;
-        this.stockPrice = selectedOption.stock_price;
-        this.updateIncomeComparisonChart();
-      }
-    }
+  calculateByMonth(income: number): number {
+    return this.projectionType === 'yearly' ? income : income / 12;
   }
 
-  calculateDaysToExpiry(date: string): number {
-    const currentDate = new Date();
-    const expirationDate = new Date(date);
-    const difference = expirationDate.getTime() - currentDate.getTime();
-    return Math.ceil(difference / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+  eligiblePremiumShares() {
+    return Math.floor(this.formData.shares / 100) * 100;
   }
 
-  // ROI Calculations
-  getDividendIncome(): number {
-    let dividend_per_year = (this.stockPrice * this.dividendYield) * 100;
-    return this.viewMode === 'monthly' ?
-      dividend_per_year / 12 : dividend_per_year;
+  /**
+   * Calculate the dividend income.
+   */
+  calculateDividendsByYear(dividend_yield: number, stock_price: number): number {
+    const dividendPerShare = dividend_yield * stock_price; // Example dividend per share
+    let dividendAmount = this.formData.shares * dividendPerShare;
+    return this.projectionType === 'yearly' ? dividendAmount : dividendAmount / 12;
   }
 
-  getPremiumIncome(): number {
-    const premiumValue = this.premium ?? 0;
-    const premiumIncome = premiumValue * 100;
-    return this.viewMode === 'monthly' ? premiumIncome : premiumIncome * 12;
+  calculatePremiumByYear(premium: number, eligibleShares: number): number {
+    return this.projectionType === 'yearly' ? ((premium * eligibleShares) * 12) : (premium * eligibleShares);
   }
 
-  convertToUppercase(): void {
-    if (this.formData.ticker) {
-      this.formData.ticker = this.formData.ticker.toUpperCase();
-    }
+  /**
+   * Handle changes to expiration date.
+   */
+  onExpirationDateChange(): void {
+    this.updateStrikePrices();
   }
 
-  calculateIncomeBelowStrike(): number {
-    // Income if stock price stays below the strike price
-    const dividendIncome = this.getDividendIncome();
-    const premiumIncome = this.getPremiumIncome();// Calculate dividend income
-    return dividendIncome + (premiumIncome ?? 0);
+  /**
+   * Handle changes to strike price or number of shares.
+   */
+  onInputChange(): void {
+    this.calculatePremium();
   }
 
-  calculateIncomeAtStrike(): number {
-    // Income if stock price hits the strike price
-    const dividendIncome = this.getDividendIncome();
-    const premiumIncome = this.getPremiumIncome();
-    const capitalGain = this.calculateCapitalGainsAtStrike(); // Gain from selling at strike price
-    return dividendIncome + (premiumIncome ?? 0) + capitalGain;
+  calculateDaysToExpiry(expirationDate: string): number {
+    const today = new Date();
+    const expiryDate = new Date(expirationDate);
+    const timeDifference = expiryDate.getTime() - today.getTime();
+    const daysToExpiry = Math.ceil(timeDifference / (1000 * 3600 * 24)); // Convert milliseconds to days
+    return daysToExpiry >= 0 ? daysToExpiry : 0; // Ensure non-negative days
   }
 
-  calculateIncomeAboveStrike(): number {
-    // Income if stock price exceeds the strike price
-    const dividendIncome = this.getDividendIncome();
-    const premiumIncome = this.getPremiumIncome();
-    const capitalGain = this.calculateCapitalGainsAtStrike();
-    return dividendIncome + (premiumIncome ?? 0) + capitalGain; // Income is capped at strike price
-  }
-
-  calculateCapitalGainsAtStrike(): number {
-    // Capital gain from selling at the strike price
-    const purchasePrice = this.stockPrice; // Assume the current stock price is the purchase price
-    return (this.formData.strike_price! - purchasePrice) * 100!;
-  }
-
-  calculateShortTermTaxAtStrike(): number {
-    // Short-term capital gains tax
-    const gains = this.calculateCapitalGainsAtStrike();
-    return gains * SHORT_TERM_TAX_RATE;
-  }
-
-  calculateLongTermTaxAtStrike(): number {
-    // Long-term capital gains tax
-    const gains = this.calculateCapitalGainsAtStrike();
-    return gains * LONG_TERM_TAX_RATE;
-  }
-
-  updateIncomeComparisonChart() {
-    const dividendAmount = this.getDividendIncome();
-    const premiumAmount = this.getPremiumIncome() + dividendAmount;
-    console.log('dividendAmount:', dividendAmount, 'premiumAmount:', premiumAmount);
-    this.roiChartData = {
-      labels: ['Income Comparison'],
-      datasets: [
-        {
-          data: [dividendAmount],
-          label: 'Dividends Amount',
-          backgroundColor: 'rgba(0,123,255,0.5)',
-          barThickness: 50,
-          barPercentage: 0.5,
-          categoryPercentage: 0.5
-        },
-        {
-          data: [premiumAmount],
-          label: 'Dividends + Premiums Amount',
-          backgroundColor: 'rgba(40,167,69,0.5)',
-          barThickness: 50,
-          barPercentage: 0.5,
-          categoryPercentage: 0.5
-        }
-      ]
-    };
-  }
 }
