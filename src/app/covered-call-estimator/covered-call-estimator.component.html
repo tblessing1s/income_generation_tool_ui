@@ -79,7 +79,7 @@
       <div class="results-header">
         <h3>Your Combined Income</h3>
         <mat-icon
-          matTooltip="The total income below includes both premium income and dividend income from your shares."
+          matTooltip="The total income below includes both premium income and dividend income from your shares." matTooltipTouchGestures="on"
         >
           info
         </mat-icon>
@@ -108,7 +108,7 @@
             <strong>Premium Income:</strong> For {{ eligiblePremiumShares() }} shares
             <mat-icon
               matTooltip="Premiums apply only to shares in groups of 100."
-              aria-label="Premium Info"
+              aria-label="Premium Info" matTooltipTouchGestures="on"
             >
               info
             </mat-icon>
@@ -117,7 +117,7 @@
             <strong>Dividend Income:</strong> For all {{ formData.shares }} shares
             <mat-icon
               matTooltip="Dividend income is calculated for all shares, regardless of premium eligibility."
-              aria-label="Dividend Info"
+              aria-label="Dividend Info" matTooltipTouchGestures="on"
             >
               info
             </mat-icon>
@@ -128,7 +128,7 @@
         <h4>Income Breakdown
           <mat-icon
             matTooltip="This chart breaks down your total income into contributions from both premium income and dividend income."
-            aria-label="Chart Info" class="info-icon">
+            aria-label="Chart Info" class="info-icon" matTooltipTouchGestures="on">
             info
           </mat-icon>
         </h4>
