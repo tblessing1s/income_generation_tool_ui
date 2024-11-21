@@ -14,8 +14,18 @@
             required
             placeholder="e.g., AAPL"
             matTooltip="Enter the stock symbol of the shares you own."
-            (blur)="fetchOptionsRecommendations()"
+            [matAutocomplete]="auto"
+            (input)="onTickerInput($event)"
           />
+          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onTickerSelected($event)">
+            <cdk-virtual-scroll-viewport itemSize="10" class="viewport" [style.height.px]="calculateViewportHeight(filteredTickers.length)">
+              <ng-container *cdkVirtualFor="let ticker of filteredTickers">
+                <mat-option [value]="ticker.stock_ticker">
+                  {{ ticker.stock_ticker }}
+                </mat-option>
+              </ng-container>
+            </cdk-virtual-scroll-viewport>
+          </mat-autocomplete>
         </mat-form-field>
         <mat-form-field class="input-field" appearance="outline">
           <mat-label>Number of Shares</mat-label>

@@ -10,8 +10,6 @@ import {environment} from '../environments/environment';
   providedIn: 'root'
 })
 export class CoveredCallEstimatorService {
-  // private apiUrl = 'http://127.0.0.1:5000/api/';
-  // private apiUrl = 'https://income-generation-tool-backend.onrender.com/api/';
 
   constructor(private http: HttpClient) {}
 
@@ -21,5 +19,10 @@ export class CoveredCallEstimatorService {
 
   getOptionsData(ticker: string, strategy: string): Observable<any> {
     return this.http.get<any>(`${environment.apiUrl}options_chain_data?ticker=${ticker}&strategy=${strategy}`);
+  }
+
+  // Fetch ticker symbols and companies from the API
+  fetchTickers(): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}tickers`);
   }
 }

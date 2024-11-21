@@ -1,5 +1,8 @@
-import {Component} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {CoveredCallEstimatorService} from '../covered-call-estimator.service';
+import {FormControl} from '@angular/forms';
+import {debounceTime, distinctUntilChanged, map, Observable, startWith, Subject} from 'rxjs';
+import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
 
 const SHORT_TERM_TAX_RATE = 0.37; // 37% for short-term gains (example value)
 const LONG_TERM_TAX_RATE = 0.20;  // 20% for long-term gains (example value)
@@ -9,7 +12,11 @@ const LONG_TERM_TAX_RATE = 0.20;  // 20% for long-term gains (example value)
   templateUrl: './covered-call-estimator.component.html',
   styleUrls: ['./covered-call-estimator.component.css']
 })
-export class CoveredCallEstimatorComponent {
+export class CoveredCallEstimatorComponent implements OnInit {
+  filteredTickers: { stock_ticker: string}[] = [];
+
+  tickers: { stock_ticker: string}[] = [];
+
   formData = {
     ticker: '',
     shares: 100, // Default value
@@ -18,7 +25,7 @@ export class CoveredCallEstimatorComponent {
   };
   dropdownOptions: {
     expiration_dates: string[],
-    strike_prices: {price: number, probability: number, premium: number}[]
+    strike_prices: { price: number, probability: number, premium: number }[]
   } = {
     expiration_dates: [],
     strike_prices: [],
@@ -31,9 +38,59 @@ export class CoveredCallEstimatorComponent {
   dividend: number = 0;
   totalIncome: number = 0;
   projectionType: 'yearly' | 'monthly' = 'yearly'; // Default to yearly
+  inputSubject = new Subject<string>();
 
-  constructor(private optionsDataService: CoveredCallEstimatorService) {}
+  constructor(private optionsDataService: CoveredCallEstimatorService) {
+  }
 
+  ngOnInit(): void {
+    this.optionsDataService.fetchTickers().subscribe({
+      next: (data: { tickers: { stock_ticker: string }[] }) => {
+        this.tickers = data.tickers.map((ticker: any) => ({stock_ticker: ticker.stock_symbol}));
+        // this.filteredTickers = this.tickers;
+        console.log('tickers', this.tickers);
+      },
+      error: (err: any) => {
+        console.error('Error fetching tickers:', err);
+      },
+    });
+
+    this.inputSubject.pipe(debounceTime(300), distinctUntilChanged()).subscribe((value) => {
+      this.filterTickers(value);
+    });
+  }
+
+  // onTickerInput(event: Event): void {
+  //   const inputValue = (event.target as HTMLInputElement).value.toUpperCase();
+  //   const filterValue = inputValue.toUpperCase();
+  //   console.log('filterValue', filterValue);
+  //   console.log('tickers', this.tickers);
+  //   this.filteredTickers = this.tickers.filter(
+  //     (ticker) => {
+  //       return ticker.stock_ticker.toUpperCase().includes(filterValue)
+  //     }
+  //   );
+  //   console.log('result', this.filteredTickers);
+  //
+  // }
+
+  onTickerInput(event: Event): void {
+    const inputValue = (event.target as HTMLInputElement).value;
+    this.inputSubject.next(inputValue); // Emit value to Subject
+  }
+
+  filterTickers(value: string): void {
+    const filterValue = value.toUpperCase();
+    this.filteredTickers = this.tickers.filter((ticker) =>
+      ticker.stock_ticker.toUpperCase().includes(filterValue)
+    );
+  }
+
+  onTickerSelected(event: MatAutocompleteSelectedEvent): void {
+    this.formData.ticker = event.option.value.toUpperCase(); // Update formData with the selected ticker
+    console.log('formData', this.formData);
+    this.fetchOptionsRecommendations(); // Trigger fetch logic
+  }
 
   /**
    * Fetch options data and populate expiration dates and strike prices.
@@ -197,4 +254,10 @@ export class CoveredCallEstimatorComponent {
     return daysToExpiry >= 0 ? daysToExpiry : 0; // Ensure non-negative days
   }
 
+  calculateViewportHeight(itemsCount: number): number {
+    const itemHeight = 50; // Height of a single item, matching itemSize
+    const maxItemsVisible = 5; // Max items to show before scrolling
+    const height = Math.min(itemsCount, maxItemsVisible) * itemHeight;
+    return height;
+  }
 }

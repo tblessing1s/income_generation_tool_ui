@@ -109,3 +109,9 @@ mat-option:hover {
   align-items: center;
   margin-left: 20px;
 }
+
+.viewport {
+  width: 100%;
+  overflow: auto;
+  padding: 4px 0;
+}

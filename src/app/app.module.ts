@@ -18,6 +18,8 @@ import {provideHttpClient} from '@angular/common/http';
 import {MatStepperModule} from '@angular/material/stepper';
 import {MatExpansionModule} from '@angular/material/expansion';
 import {MatButtonToggle, MatButtonToggleGroup} from '@angular/material/button-toggle';
+import {MatAutocomplete, MatAutocompleteTrigger} from '@angular/material/autocomplete';
+import {ScrollingModule} from '@angular/cdk/scrolling';
 
 @NgModule({
   declarations: [
@@ -41,6 +43,9 @@ import {MatButtonToggle, MatButtonToggleGroup} from '@angular/material/button-to
     MatExpansionModule,
     MatButtonToggleGroup,
     MatButtonToggle,
+    MatAutocomplete,
+    MatAutocompleteTrigger,
+    ScrollingModule,
 // Import FormsModule for form handling
   ],
   providers: [
