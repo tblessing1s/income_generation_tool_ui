@@ -1,0 +1,108 @@
+<div class="estimator-container">
+  <form [formGroup]="strategyForm">
+    <div>
+      <mat-form-field class="input-field" appearance="outline">
+        <mat-label>Strategy</mat-label>
+        <mat-select
+          formControlName="strategy"
+          (selectionChange)="onStrategyChange()"
+          matTooltip="Choose the strategy you want to estimate."
+        >
+          <mat-option value="coveredCall">Covered Call</mat-option>
+          <mat-option value="cashSecuredPut">Cash Secured Put</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="section stock-details">
+      <h3>Stock Details</h3>
+      <div class="row">
+        <mat-form-field class="input-field" appearance="outline">
+          <mat-label>Stock Symbol</mat-label>
+          <input
+            matInput
+            type="text"
+            formControlName="ticker"
+            required
+            placeholder="e.g., AAPL"
+            matTooltip="Enter the stock symbol of the shares you own."
+            [matAutocomplete]="auto"
+            (input)="onTickerInput($event)"
+          />
+          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onTickerSelected($event)">
+            <cdk-virtual-scroll-viewport itemSize="10" class="viewport"
+                                         [style.height.px]="calculateViewportHeight(filteredTickers.length)">
+              <ng-container *cdkVirtualFor="let ticker of filteredTickers">
+                <mat-option [value]="ticker.stock_ticker">
+                  {{ ticker.stock_ticker }}
+                </mat-option>
+              </ng-container>
+            </cdk-virtual-scroll-viewport>
+          </mat-autocomplete>
+        </mat-form-field>
+        <mat-form-field class="input-field" appearance="outline">
+          <mat-label>Number of Shares</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="shares"
+            placeholder="e.g., 100"
+            [matTooltip]="this.shareInputLabel"
+            (input)="onShareChanges($event)"
+          />
+        </mat-form-field>
+      </div>
+
+      <div *ngIf="loading" class="loading-indicator">
+        <mat-progress-spinner
+          mode="indeterminate"
+          diameter="40"
+          color="accent"
+        ></mat-progress-spinner>
+      </div>
+    </div>
+
+    <!-- Option Detail -->
+    <div class="section">
+      <h3>Option Details</h3>
+      <div class="row">
+        <mat-form-field class="input-field" appearance="outline">
+          <mat-label>Expiration Date</mat-label>
+          <mat-select
+            formControlName="expiration_date"
+            (selectionChange)="onExpirationDateChange()"
+            matTooltip="Choose the date when the option contract will expire."
+          >
+            <mat-option *ngFor="let date of dropdownOptions.expiration_dates" [value]="date">
+              {{ date }} ({{ calculateDaysToExpiry(date) }} days)
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field class="input-field" appearance="outline">
+          <mat-label>Strike Price</mat-label>
+          <mat-select
+            formControlName="strike_price"
+            (selectionChange)="onStrikePriceChange($event)"
+            matTooltip="Choose the price at which you are willing to sell your shares."
+          >
+            <mat-option *ngFor="let option of dropdownOptions.strike_prices" [value]="option.price">
+              {{ option.price }} ({{ (option.probability * 100).toFixed(1) }}% Probability)
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+    <!--  Results for CC and CSP go here  -->
+    <app-covered-call-estimator
+     *ngIf="selectedStrategy === 'coveredCall'"
+     [strikePrice]="strategyForm.get('strike_price')?.value"
+     [expirationDate]="strategyForm.get('expiration_date')?.value"
+     [shares]="strategyForm.get('shares')?.value"
+     [premium]="strategyForm.get('premium')?.value"
+     [dividendYield]="strategyForm.get('dividend_yield')?.value"
+     [stockPrice]="strategyForm.get('stock_price')?.value"
+    >
+    </app-covered-call-estimator>
+  </form>
+</div>

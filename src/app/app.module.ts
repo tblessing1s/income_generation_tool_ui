@@ -1,6 +1,6 @@
 import {NgModule} from '@angular/core';
 import {BrowserModule} from '@angular/platform-browser';
-import {FormsModule} from '@angular/forms';
+import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {NgChartsModule} from 'ng2-charts';
 
 import {CoveredCallEstimatorComponent} from './covered-call-estimator/covered-call-estimator.component';
@@ -20,12 +20,14 @@ import {MatExpansionModule} from '@angular/material/expansion';
 import {MatButtonToggle, MatButtonToggleGroup} from '@angular/material/button-toggle';
 import {MatAutocomplete, MatAutocompleteTrigger} from '@angular/material/autocomplete';
 import {ScrollingModule} from '@angular/cdk/scrolling';
+import {StrategyEstimatorComponent} from './strategy-estimator/strategy-estimator.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     CoveredCallEstimatorComponent,// Declare the component here
-    HelpComponent
+    HelpComponent,
+    StrategyEstimatorComponent
   ],
   imports: [
     BrowserModule,
@@ -46,11 +48,15 @@ import {ScrollingModule} from '@angular/cdk/scrolling';
     MatAutocomplete,
     MatAutocompleteTrigger,
     ScrollingModule,
+    ReactiveFormsModule,
 // Import FormsModule for form handling
   ],
   providers: [
     provideAnimationsAsync(),
     provideHttpClient()
+  ],
+  exports: [
+    CoveredCallEstimatorComponent
   ],
   bootstrap: [AppComponent]        // Set AppComponent as the bootstrap component
 })

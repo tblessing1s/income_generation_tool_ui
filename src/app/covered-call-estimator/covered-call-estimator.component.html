@@ -1,155 +1,68 @@
-<div class="estimator-container">
-  <form>
-    <!-- Stock Details Section -->
-    <div class="section stock-details">
-      <h3>Stock Details</h3>
-      <div class="row">
-        <mat-form-field class="input-field" appearance="outline">
-          <mat-label>Stock Symbol</mat-label>
-          <input
-            matInput
-            type="text"
-            [(ngModel)]="formData.ticker"
-            name="ticker"
-            required
-            placeholder="e.g., AAPL"
-            matTooltip="Enter the stock symbol of the shares you own."
-            [matAutocomplete]="auto"
-            (input)="onTickerInput($event)"
-          />
-          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onTickerSelected($event)">
-            <cdk-virtual-scroll-viewport itemSize="10" class="viewport" [style.height.px]="calculateViewportHeight(filteredTickers.length)">
-              <ng-container *cdkVirtualFor="let ticker of filteredTickers">
-                <mat-option [value]="ticker.stock_ticker">
-                  {{ ticker.stock_ticker }}
-                </mat-option>
-              </ng-container>
-            </cdk-virtual-scroll-viewport>
-          </mat-autocomplete>
-        </mat-form-field>
-        <mat-form-field class="input-field" appearance="outline">
-          <mat-label>Number of Shares</mat-label>
-          <input
-            matInput
-            type="number"
-            [(ngModel)]="formData.shares"
-            name="number_of_shares"
-            placeholder="e.g., 100"
-            matTooltip="Enter the total number of shares you own."
-            (input)="onInputChange()"
-          />
-        </mat-form-field>
-      </div>
+<!-- Results Section -->
+<div class="results">
+  <div class="results-header">
+    <h3>Your Combined Income</h3>
+    <mat-icon
+      matTooltip="The total income below includes both premium income and dividend income from your shares."
+      matTooltipTouchGestures="on"
+    >
+      info
+    </mat-icon>
+  </div>
 
-      <div *ngIf="loading" class="loading-indicator">
-        <mat-progress-spinner
-          mode="indeterminate"
-          diameter="40"
-          color="accent"
-        ></mat-progress-spinner>
-      </div>
-    </div>
+  <!-- Projection Toggle -->
+  <mat-button-toggle-group
+    [(ngModel)]="projectionType"
+    name="projectionType"
+    aria-label="Projection Type"
+    (change)="onInputChange()"
+  >
+    <mat-button-toggle value="yearly">Yearly</mat-button-toggle>
+    <mat-button-toggle value="monthly">Monthly</mat-button-toggle>
+  </mat-button-toggle-group>
 
-    <!-- Option Detail -->
-    <div class="section">
-      <h3>Option Details</h3>
-      <div class="row">
-        <mat-form-field class="input-field" appearance="outline">
-          <mat-label>Expiration Date</mat-label>
-          <mat-select
-            [(ngModel)]="formData.expiration_date"
-            name="expiration_date"
-            (selectionChange)="onExpirationDateChange()"
-            matTooltip="Choose the date when the option contract will expire."
-          >
-            <mat-option *ngFor="let date of dropdownOptions.expiration_dates" [value]="date">
-              {{ date }} ({{ calculateDaysToExpiry(date) }} days)
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field class="input-field" appearance="outline">
-          <mat-label>Strike Price</mat-label>
-          <mat-select
-            [(ngModel)]="formData.strike_price"
-            name="strike_price"
-            (selectionChange)="onInputChange()"
-            matTooltip="Choose the price at which you are willing to sell your shares."
-          >
-            <mat-option *ngFor="let option of dropdownOptions.strike_prices" [value]="option.price">
-              {{ option.price }} ({{ (option.probability * 100).toFixed(1) }}% Probability)
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
-      </div>
-    </div>
-
-    <!-- Results Section -->
-    <div class="results">
-      <div class="results-header">
-        <h3>Your Combined Income</h3>
+  <!-- Total Income -->
+  <div class="income-display">
+    <h2>
+      {{ projectionType === 'yearly' ? 'Yearly Income:' : 'Monthly Income:' }}
+      ${{ this.totalIncome | number: '1.2-2' }}
+    </h2>
+    <p>Total income is calculated based on eligible shares:</p>
+    <ul>
+      <li>
+        <strong>Premium Income:</strong> For {{ eligiblePremiumShares() }} shares
         <mat-icon
-          matTooltip="The total income below includes both premium income and dividend income from your shares." matTooltipTouchGestures="on"
+          matTooltip="Premiums apply only to shares in groups of 100."
+          aria-label="Premium Info" matTooltipTouchGestures="on"
         >
           info
         </mat-icon>
-      </div>
+      </li>
+      <li>
+        <strong>Dividend Income:</strong> For all {{ this.shares }} shares
+        <mat-icon
+          matTooltip="Dividend income is calculated for all shares, regardless of premium eligibility."
+          aria-label="Dividend Info" matTooltipTouchGestures="on"
+        >
+          info
+        </mat-icon>
+      </li>
+    </ul>
+  </div>
+  <div class="chart-container" *ngIf="incomeBreakdownChart">
+    <h4>Income Breakdown
+      <mat-icon
+        matTooltip="This chart breaks down your total income into contributions from both premium income and dividend income."
+        aria-label="Chart Info" class="info-icon" matTooltipTouchGestures="on">
+        info
+      </mat-icon>
+    </h4>
+    <canvas
+      baseChart
+      [data]="incomeBreakdownChart"
+      [type]="'bar'"
+      [options]="{ responsive: true, scales: { y: { beginAtZero: true } } }"
+    ></canvas>
+  </div>
 
-      <!-- Projection Toggle -->
-      <mat-button-toggle-group
-        [(ngModel)]="projectionType"
-        name="projectionType"
-        aria-label="Projection Type"
-        (change)="onInputChange()"
-      >
-        <mat-button-toggle value="yearly">Yearly</mat-button-toggle>
-        <mat-button-toggle value="monthly">Monthly</mat-button-toggle>
-      </mat-button-toggle-group>
-
-      <!-- Total Income -->
-      <div class="income-display">
-        <h2>
-          {{ projectionType === 'yearly' ? 'Yearly Income:' : 'Monthly Income:' }}
-          ${{ this.totalIncome | number: '1.2-2' }}
-        </h2>
-        <p>Total income is calculated based on eligible shares:</p>
-        <ul>
-          <li>
-            <strong>Premium Income:</strong> For {{ eligiblePremiumShares() }} shares
-            <mat-icon
-              matTooltip="Premiums apply only to shares in groups of 100."
-              aria-label="Premium Info" matTooltipTouchGestures="on"
-            >
-              info
-            </mat-icon>
-          </li>
-          <li>
-            <strong>Dividend Income:</strong> For all {{ formData.shares }} shares
-            <mat-icon
-              matTooltip="Dividend income is calculated for all shares, regardless of premium eligibility."
-              aria-label="Dividend Info" matTooltipTouchGestures="on"
-            >
-              info
-            </mat-icon>
-          </li>
-        </ul>
-      </div>
-      <div class="chart-container" *ngIf="roiChartData">
-        <h4>Income Breakdown
-          <mat-icon
-            matTooltip="This chart breaks down your total income into contributions from both premium income and dividend income."
-            aria-label="Chart Info" class="info-icon" matTooltipTouchGestures="on">
-            info
-          </mat-icon>
-        </h4>
-        <canvas
-          baseChart
-          [data]="roiChartData"
-          [type]="'bar'"
-          [options]="{ responsive: true, scales: { y: { beginAtZero: true } } }"
-        ></canvas>
-      </div>
-
-    </div>
-  </form>
 </div>
